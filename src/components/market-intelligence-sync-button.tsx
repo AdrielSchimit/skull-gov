@@ -6,7 +6,7 @@ import { useState } from "react";
 
 interface SyncResponse {
   error?: string;
-  agencies?: Array<{ cnpj: string; name: string; city: string | null }>;
+  buyers?: Array<{ cnpj: string; name: string; unitCode: string | null; unitName: string | null; city: string | null }>;
   fetched?: { items: number; results: number };
   normalized?: { procurements: number; items: number; suppliers: number; results: number };
   persisted?: {
@@ -34,18 +34,18 @@ export function MarketIntelligenceSyncButton({ enabled }: { enabled: boolean }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           state: "SP",
-          days: 30,
-          itemLookbackDays: 180,
+          days: 90,
+          itemLookbackDays: 365,
           cities: ["Ribeirão Preto", "Sertãozinho", "Barrinha", "Jaboticabal", "Araraquara"],
           agencyLimit: 6,
-          pageLimit: 2,
-          pageSize: 250,
+          pageLimit: 1,
+          pageSize: 100,
         }),
       });
       const result = await response.json() as SyncResponse;
       if (!response.ok) throw new Error(result.error ?? "A sincronização histórica falhou.");
       setMessage(
-        `${result.normalized?.suppliers ?? 0} fornecedores · ${result.persisted?.results_upserted ?? 0} resultados · ${result.agencies?.length ?? 0} órgãos`,
+        `${result.normalized?.suppliers ?? 0} fornecedores · ${result.persisted?.results_upserted ?? 0} resultados · ${result.buyers?.length ?? 0} unidades`,
       );
       router.refresh();
     } catch (error) {
