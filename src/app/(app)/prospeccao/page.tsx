@@ -11,7 +11,7 @@ import styles from "./page.module.css";
 
 export const metadata = { title: "Prospecção" };
 
-const allowedRadii = [100, 180, 220, 250, 300];
+const allowedRadii = [100, 120, 150, 180, 220, 250, 300];
 
 export default async function ProspectingPage({ searchParams }: { searchParams: Promise<{ niche?: string; radius?: string }> }) {
   const session = await getSessionContext();
@@ -30,14 +30,27 @@ export default async function ProspectingPage({ searchParams }: { searchParams: 
     <PageHeader
       eyebrow="MODO GESTOR · PROSPECÇÃO"
       title="Chegue no comércio já mostrando dinheiro público na mesa."
-      description="Escolha o nicho do prospect e consulte ao vivo as propostas abertas no PNCP dos municípios próximos de Barrinha. A base geral também continua recebendo PNCP + Compras.gov. Esta tela é exclusiva da gestão SKULL."
+      description="Cada módulo tem seu próprio filtro rígido. Mercado não recebe software, esgoto ou obra; posto recebe combustível; construção recebe fornecimento de material, não execução de obra."
       action={<ProspectSyncButton niche={nicheKey} radius={radius} />}
     />
 
     <div className="content-stack">
+      <nav className={styles.modules} aria-label="Módulos de prospecção">
+        {Object.entries(PROSPECTING_PROFILES).map(([key, profile]) => (
+          <Link
+            key={key}
+            href={`/prospeccao?niche=${key}&radius=${profile.defaultRadius}`}
+            className={`${styles.module}${key === nicheKey ? ` ${styles.moduleActive}` : ""}`}
+          >
+            <strong>{profile.label}</strong>
+            <span>{profile.defaultRadius} km</span>
+          </Link>
+        ))}
+      </nav>
+
       <section className={`panel ${styles.hero}`}>
         <div>
-          <span className="eyebrow">DEMONSTRAÇÃO AO VIVO</span>
+          <span className="eyebrow">DEMONSTRAÇÃO AO VIVO · {niche.label.toUpperCase()}</span>
           <h2>{niche.label}</h2>
           <p>{niche.description} O filtro atual considera oportunidades com distância calculada de até <strong>{radius} km de Barrinha/SP</strong>.</p>
         </div>
@@ -69,11 +82,11 @@ export default async function ProspectingPage({ searchParams }: { searchParams: 
 
       {result.error && <DataError message={result.error} />}
 
-      <div className="section-heading"><div><h2>Oportunidades para mostrar ao prospect</h2><p>Contratações públicas abertas e compatíveis com o nicho. Clique no card para abrir detalhes, edital, itens e a futura análise da SKULL IA.</p></div><span className="filter-pill active"><MapPin size={14} />até {radius} km</span></div>
+      <div className="section-heading"><div><h2>Oportunidades para mostrar ao prospect</h2><p>Contratações públicas abertas classificadas exclusivamente para <strong>{niche.label}</strong>. Clique para ver edital, itens e análise.</p></div><span className="filter-pill active"><MapPin size={14} />até {radius} km</span></div>
 
       {result.data.length ? <div className="opportunity-list">{result.data.map((opportunity) => <OpportunityCard key={opportunity.id} opportunity={opportunity} />)}</div> : <EmptyState title="Ainda não apareceu lead nesse recorte" description="Clique em “Buscar oportunidades agora”. O SKULL GOV consulta o endpoint oficial de propostas abertas do PNCP nos municípios da região; se não houver contratação compatível, não inventamos resultado." />}
 
-      <section className={`panel ${styles.next}`}><Target size={20} /><div><strong>Gostou da demonstração?</strong><p>O próximo passo é cadastrar o CNPJ do comércio. O sistema identifica CNAEs, cria o tenant e monta o Radar exclusivo daquele cliente.</p></div><Link className="button button-secondary" href="/cadastro">Pré-cadastrar cliente <ArrowRight size={16} /></Link></section>
+      <section className={`panel ${styles.next}`}><Target size={20} /><div><strong>Gostou da demonstração?</strong><p>Cadastre o CNPJ do comércio. O sistema lê os CNAEs, identifica o módulo e cria um Radar exclusivo daquele cliente.</p></div><Link className="button button-secondary" href="/cadastro">Pré-cadastrar cliente <ArrowRight size={16} /></Link></section>
     </div>
   </>;
 }
