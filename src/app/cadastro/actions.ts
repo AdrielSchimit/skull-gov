@@ -14,6 +14,8 @@ const schema = z.object({
   password: z.string().min(8, "A senha deve ter ao menos 8 caracteres."),
 });
 
+const redirectTo = "https://skull-gov.vercel.app/auth/callback?next=/dashboard";
+
 export async function signupClient(_: SignupState, formData: FormData): Promise<SignupState> {
   const parsed = schema.safeParse({
     email: formData.get("email"),
@@ -24,15 +26,37 @@ export async function signupClient(_: SignupState, formData: FormData): Promise<
   const supabase = await createServerSupabaseClient();
   if (!supabase) return { error: "Supabase não configurado.", success: null };
 
+  const email = parsed.data.email.toLowerCase();
   const { data, error } = await supabase.auth.signUp({
-    email: parsed.data.email.toLowerCase(),
+    email,
     password: parsed.data.password,
-    options: {
-      emailRedirectTo: "https://skull-gov.vercel.app/auth/callback?next=/dashboard",
-    },
+    options: { emailRedirectTo: redirectTo },
   });
 
-  if (error) return { error: "Não foi possível criar a conta. Se ela já existir, use a tela de login.", success: null };
+  if (error) {
+    const resend = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: redirectTo },
+    });
+
+    if (!resend.error) {
+      return {
+        error: null,
+        success: "A conta já existe e está aguardando confirmação. Reenviamos o e-mail de confirmação. Confira também Spam e Promoções.",
+      };
+    }
+
+    return {
+      error: "A conta já pode ter sido criada, mas não foi possível reenviar a confirmação agora. Tente novamente em alguns minutos.",
+      success: null,
+    };
+  }
+
   if (data.session) redirect("/dashboard");
-  return { error: null, success: "Conta criada. Confirme o e-mail recebido e depois entre normalmente." };
+
+  return {
+    error: null,
+    success: "Conta criada. Enviamos o e-mail de confirmação. Confira também Spam e Promoções e depois entre normalmente.",
+  };
 }
