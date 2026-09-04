@@ -20,7 +20,10 @@ export function AppShell({ children, email, role, configured }: { children: Reac
           </div>
         </div>
       </aside>
-      <header className="mobile-header"><Brand /><span className="eyebrow">INTELIGÊNCIA PNCP</span></header>
+      <header className="mobile-header">
+        <Brand />
+        {email ? <form action={logout} style={{ marginLeft: "auto" }}><button className="icon-button" title="Sair da conta" aria-label="Sair da conta"><LogOut size={17} /></button></form> : <span className="eyebrow">SKULL GOV</span>}
+      </header>
       <main className="main-content">{children}</main>
       <div className="mobile-nav"><Suspense fallback={null}><NavLinks mobile /></Suspense></div>
     </div>
