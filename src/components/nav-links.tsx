@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Bell, BriefcaseBusiness, Building2, FileStack, Gauge, Radar, Settings2, Store, UsersRound,
+  Bell, BriefcaseBusiness, Building2, DraftingCompass, FileStack, Gauge, Radar, Settings2, Store, UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -18,6 +18,7 @@ const baseLinks = [
 ];
 
 const adminLinks = [
+  { href: "/arquitetura", label: "Arquitetura & Urbanismo", icon: DraftingCompass },
   { href: "/empresas", label: "Empresas", icon: Building2 },
   { href: "/demo/delta", label: "Demo Delta", icon: Store },
 ];
