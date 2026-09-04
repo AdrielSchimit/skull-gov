@@ -30,8 +30,8 @@ export default async function ProspectingPage({ searchParams }: { searchParams: 
     <PageHeader
       eyebrow="MODO GESTOR · PROSPECÇÃO"
       title="Chegue no comércio já mostrando dinheiro público na mesa."
-      description="Escolha o nicho do prospect, atualize PNCP + Compras.gov e mostre somente oportunidades abertas dentro do raio de Barrinha. Esta tela é exclusiva da gestão SKULL."
-      action={<ProspectSyncButton />}
+      description="Escolha o nicho do prospect e consulte ao vivo as propostas abertas no PNCP dos municípios próximos de Barrinha. A base geral também continua recebendo PNCP + Compras.gov. Esta tela é exclusiva da gestão SKULL."
+      action={<ProspectSyncButton niche={nicheKey} radius={radius} />}
     />
 
     <div className="content-stack">
@@ -69,9 +69,9 @@ export default async function ProspectingPage({ searchParams }: { searchParams: 
 
       {result.error && <DataError message={result.error} />}
 
-      <div className="section-heading"><div><h2>Oportunidades para mostrar ao prospect</h2><p>Dados públicos já ingeridos das fontes oficiais. Clique no card para abrir detalhes, edital, itens e a futura análise da SKULL IA.</p></div><span className="filter-pill active"><MapPin size={14} />até {radius} km</span></div>
+      <div className="section-heading"><div><h2>Oportunidades para mostrar ao prospect</h2><p>Contratações públicas abertas e compatíveis com o nicho. Clique no card para abrir detalhes, edital, itens e a futura análise da SKULL IA.</p></div><span className="filter-pill active"><MapPin size={14} />até {radius} km</span></div>
 
-      {result.data.length ? <div className="opportunity-list">{result.data.map((opportunity) => <OpportunityCard key={opportunity.id} opportunity={opportunity} />)}</div> : <EmptyState title="Ainda não apareceu lead nesse recorte" description="Clique em “Buscar oportunidades agora”. O SKULL GOV consulta PNCP e Compras.gov; se nenhuma contratação aberta corresponder ao nicho e raio, não inventamos resultado." />}
+      {result.data.length ? <div className="opportunity-list">{result.data.map((opportunity) => <OpportunityCard key={opportunity.id} opportunity={opportunity} />)}</div> : <EmptyState title="Ainda não apareceu lead nesse recorte" description="Clique em “Buscar oportunidades agora”. O SKULL GOV consulta o endpoint oficial de propostas abertas do PNCP nos municípios da região; se não houver contratação compatível, não inventamos resultado." />}
 
       <section className={`panel ${styles.next}`}><Target size={20} /><div><strong>Gostou da demonstração?</strong><p>O próximo passo é cadastrar o CNPJ do comércio. O sistema identifica CNAEs, cria o tenant e monta o Radar exclusivo daquele cliente.</p></div><Link className="button button-secondary" href="/cadastro">Pré-cadastrar cliente <ArrowRight size={16} /></Link></section>
     </div>
