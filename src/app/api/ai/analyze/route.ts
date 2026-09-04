@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { analyzeTenderWithGemini, getAiStatus } from "@/lib/ai/tender-analysis";
+import { analyzeTender, getAiStatus } from "@/lib/ai/tender-analysis";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Opportunity } from "@/lib/types";
 
@@ -30,8 +30,9 @@ export async function POST(request: Request) {
   if (opportunityError || !opportunity) return NextResponse.json({ error: "Oportunidade não encontrada." }, { status: 404 });
   if (!profile?.tenant_id) return NextResponse.json({ error: "Sua conta ainda não possui empresa/tenant configurado." }, { status: 403 });
 
-  if (!process.env.GEMINI_API_KEY) {
-    return NextResponse.json({ error: "IA preparada, aguardando GEMINI_API_KEY na Vercel.", code: "AI_NOT_CONFIGURED", ...getAiStatus() }, { status: 503 });
+  const status = getAiStatus();
+  if (!status.configured) {
+    return NextResponse.json({ error: "IA preparada, aguardando OPENROUTER_API_KEY ou GEMINI_API_KEY na Vercel.", code: "AI_NOT_CONFIGURED", ...status }, { status: 503 });
   }
 
   try {
@@ -39,14 +40,14 @@ export async function POST(request: Request) {
       tenant_id: profile.tenant_id,
       opportunity_id: opportunity.id,
       status: "processing",
-      provider: "Google Gemini",
-      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+      provider: status.provider,
+      model: status.model,
       summary: {},
       error_message: null,
       updated_at: new Date().toISOString(),
     }, { onConflict: "tenant_id,opportunity_id" });
 
-    const analysis = await analyzeTenderWithGemini(opportunity as unknown as Opportunity);
+    const analysis = await analyzeTender(opportunity as unknown as Opportunity);
     const { error: saveError } = await supabase.from("opportunity_analyses").upsert({
       tenant_id: profile.tenant_id,
       opportunity_id: opportunity.id,
@@ -65,8 +66,8 @@ export async function POST(request: Request) {
       tenant_id: profile.tenant_id,
       opportunity_id: opportunity.id,
       status: "failed",
-      provider: "Google Gemini",
-      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+      provider: status.provider,
+      model: status.model,
       summary: {},
       error_message: message,
       updated_at: new Date().toISOString(),
