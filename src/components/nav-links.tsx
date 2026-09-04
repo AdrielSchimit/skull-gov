@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Bell, BriefcaseBusiness, Building2, DraftingCompass, FileStack, Gauge, Handshake, Radar, Settings2, Store, UsersRound,
+  Bell, BriefcaseBusiness, Building2, DraftingCompass, FileStack, Gamepad2, Gauge, Handshake, Radar, Settings2, Store, UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -17,8 +17,12 @@ const baseLinks = [
   { href: "/configuracoes", label: "Configurações", icon: Settings2 },
 ];
 
+const prospectLink = { href: "/prospeccao", label: "Prospectar clientes", icon: Handshake };
+const simulatorLink = { href: "/simulador", label: "Simulador de Pregão", icon: Gamepad2 };
+
 const adminLinks = [
-  { href: "/prospeccao", label: "Prospectar clientes", icon: Handshake },
+  prospectLink,
+  simulatorLink,
   { href: "/arquitetura", label: "Arquitetura & Urbanismo", icon: DraftingCompass },
   { href: "/empresas", label: "Empresas", icon: Building2 },
   { href: "/demo/delta", label: "Demo Delta", icon: Store },
@@ -29,7 +33,11 @@ export function NavLinks({ mobile = false, role }: { mobile?: boolean; role?: Us
   const links = role === "skull_admin"
     ? [baseLinks[0], baseLinks[1], baseLinks[2], ...adminLinks, ...baseLinks.slice(3)]
     : baseLinks;
-  const visible = mobile ? links.slice(0, 4) : links;
+  const visible = mobile
+    ? role === "skull_admin"
+      ? [baseLinks[0], baseLinks[1], prospectLink, simulatorLink]
+      : links.slice(0, 4)
+    : links;
   return (
     <nav className={mobile ? "mobile-nav-links" : "nav-links"} aria-label="Navegação principal">
       {visible.map(({ href, label, icon: Icon }) => {
