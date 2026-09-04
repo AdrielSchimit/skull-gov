@@ -1,6 +1,8 @@
 import { ArrowUpRight, Check, HelpCircle, X } from "lucide-react";
 import { notFound } from "next/navigation";
+import { AiTenderAnalysis } from "@/components/ai-tender-analysis";
 import { PageHeader, RecommendationBadge, SetupNotice } from "@/components/ui";
+import { getAiStatus } from "@/lib/ai/tender-analysis";
 import { formatCnpj, formatCurrency, formatDate } from "@/lib/format";
 import { getOpportunity } from "@/lib/data";
 
@@ -10,6 +12,7 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
   if (result.configured && !result.data) notFound();
   const opportunity = result.data;
   if (!opportunity) return <><PageHeader eyebrow="ANÁLISE" title="Oportunidade indisponível." description="Conecte o Supabase para carregar a análise solicitada." /><div className="content-stack"><SetupNotice /></div></>;
+  const ai = getAiStatus();
   const requirements = opportunity.requirements;
   const sources = opportunity.source_names?.length ? opportunity.source_names : ["PNCP"];
   const analyses = requirements ? [
@@ -17,7 +20,9 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
     ["Presença física", requirements.physicalPresence], ["Garantia", requirements.warranty], ["SLA", requirements.sla], ["Implantação", requirements.implementation], ["ME/EPP", requirements.smallBusiness],
   ] : [];
   return <><PageHeader eyebrow={`FONTES · ${sources.join(" + ")}`} title={`${opportunity.city}/${opportunity.state} · ${opportunity.agency_name}`} description="Leitura inicial explicável. Valide sempre o edital e os anexos antes de decidir." action={<a className="button button-secondary" href={opportunity.pncp_url} target="_blank" rel="noreferrer">Abrir fonte oficial <ArrowUpRight size={16} /></a>} />
-    <div className="content-stack"><div className="detail-grid"><div className="content-stack">
+    <div className="content-stack">
+      <AiTenderAnalysis opportunityId={opportunity.id} configured={ai.configured} model={ai.model} />
+      <div className="detail-grid"><div className="content-stack">
       <section className="panel"><RecommendationBadge value={opportunity.recommendation} /><h1 className="detail-object">{opportunity.object}</h1><div className="facts-grid"><div className="fact"><small>Órgão</small><strong>{opportunity.agency_name}</strong></div><div className="fact"><small>CNPJ</small><strong>{formatCnpj(opportunity.agency_cnpj)}</strong></div><div className="fact"><small>Fontes</small><strong>{sources.join(" + ")}</strong></div><div className="fact"><small>Distância de Barrinha</small><strong>{opportunity.distance_km === null ? "Não catalogada" : `${opportunity.distance_km} km`}</strong></div><div className="fact"><small>Valor estimado</small><strong>{formatCurrency(opportunity.estimated_value)}</strong></div><div className="fact"><small>Encerramento</small><strong>{formatDate(opportunity.closes_at, true)}</strong></div><div className="fact"><small>Modalidade</small><strong>{opportunity.modality}</strong></div><div className="fact"><small>Situação</small><strong>{opportunity.status}</strong></div><div className="fact"><small>Processo</small><strong>{opportunity.process_number ?? "Não informado"}</strong></div><div className="fact"><small>Compra / ano</small><strong>{opportunity.purchase_number ?? "—"} / {opportunity.year}</strong></div></div></section>
       <section className="panel"><h2>Leitura operacional</h2><div className="analysis-list">{analyses.map(([label, text]) => <div className="analysis-item" key={label}><strong>{label}</strong><p>{text}</p></div>)}</div></section>
       <section className="panel"><h2>O que falta para participar</h2><ul className="checklist">{(requirements?.checklist ?? []).map((item) => <li key={item.label}><span className={`check-state ${item.met === true ? "yes" : item.met === false ? "no" : ""}`}>{item.met === true ? <Check size={13} /> : item.met === false ? <X size={13} /> : <HelpCircle size={13} />}</span>{item.label}</li>)}</ul></section>
