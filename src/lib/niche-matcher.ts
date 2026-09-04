@@ -45,6 +45,26 @@ export const PROSPECTING_PROFILES = {
       "obra de construção", "obra de construcao", "serviços de engenharia", "servicos de engenharia", "projeto executivo",
     ],
   },
+  fuel_retail: {
+    label: "Posto / combustíveis",
+    description: "Gasolina, etanol, diesel, ARLA e abastecimento de frota em posto.",
+    defaultRadius: 120,
+    positive: [
+      "fornecimento de combustível", "fornecimento de combustivel", "aquisição de combustível", "aquisicao de combustivel",
+      "aquisição de combustíveis", "aquisicao de combustiveis", "combustível automotivo", "combustivel automotivo",
+      "gasolina comum", "gasolina aditivada", "etanol", "álcool combustível", "alcool combustivel",
+      "óleo diesel", "oleo diesel", "diesel s-10", "diesel s10", "diesel s-500", "diesel s500",
+      "abastecimento de frota", "abastecimento da frota", "posto de combustível", "posto de combustivel",
+      "arla 32", "lubrificante automotivo",
+    ],
+    negative: [
+      "software", "sistema informatizado", "gestão de abastecimento", "gestao de abastecimento", "cartão combustível", "cartao combustivel",
+      "gerenciamento de frota", "taxa de administração", "taxa de administracao", "esgoto", "saneamento", "obra civil",
+      "material de construção", "materiais de construção", "gêneros alimentícios", "generos alimenticios", "medicamento",
+      "tanque de combustível", "tanque de combustivel", "bomba de combustível", "bomba de combustivel", "manutenção de bomba",
+      "manutencao de bomba",
+    ],
+  },
   automotive: {
     label: "Oficina / autopeças",
     description: "Manutenção de frota, peças, pneus, baterias e serviços automotivos.",
