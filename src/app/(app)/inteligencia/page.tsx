@@ -1,6 +1,7 @@
 import { BadgeDollarSign, Building2, DatabaseZap, FileSearch, History, Search, ShieldAlert, Store } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { MarketIntelligenceSyncButton } from "@/components/market-intelligence-sync-button";
 import { DataError, EmptyState, PageHeader, SetupNotice } from "@/components/ui";
 import { formatCnpj, formatCurrency, formatDate } from "@/lib/format";
 import { getMarketOverview, getMarketSuppliers } from "@/lib/market-intelligence/data";
@@ -49,6 +50,7 @@ export default async function MarketIntelligencePage({ searchParams }: { searchP
           <span>Último job <strong>{overview.data.latestRun ? formatDate(overview.data.latestRun.finished_at ?? overview.data.latestRun.started_at, true) : "Não executado"}</strong></span>
           <span>Status <strong>{overview.data.latestRun?.status ?? "sem job"}</strong></span>
         </div>
+        <MarketIntelligenceSyncButton enabled={overview.configured && !overview.error} />
       </section>
 
       <section className="decision-board">
@@ -82,9 +84,8 @@ export default async function MarketIntelligencePage({ searchParams }: { searchP
             ))}
           </tbody>
         </table>
-      </div> : <EmptyState title="Inteligência ainda sem histórico" description="Aplique o SQL de market intelligence e execute um backfill controlado. A tela consulta somente nosso banco; não varre APIs externas durante a pesquisa." />}
+      </div> : <EmptyState title="Inteligência ainda sem histórico" description="Use Carregar histórico GOV para importar um recorte regional oficial do Compras.gov. A pesquisa continua consultando somente nosso banco histórico." />}
       {suppliers.count > 20 && <div className="pagination"><span>Página {page} de {Math.ceil(suppliers.count / 20)}</span><span>{page > 1 && <Link className="button button-secondary" href={`/inteligencia?page=${page - 1}${params.q ? `&q=${params.q}` : ""}`}>Anterior</Link>} {page * 20 < suppliers.count && <Link className="button button-secondary" href={`/inteligencia?page=${page + 1}${params.q ? `&q=${params.q}` : ""}`}>Próxima</Link>}</span></div>}
     </div>
   </>;
 }
-
