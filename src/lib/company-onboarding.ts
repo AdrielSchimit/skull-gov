@@ -41,6 +41,12 @@ const PROFILES = [
     negative: ["software","medicamento","gênero alimentício","veículo","serviço médico"],
   },
   {
+    code: "fuel_retail", label: "Posto / combustíveis", radius: 120,
+    match: ["comercio varejista de combustiveis", "posto de combustiveis", "combustiveis para veiculos", "gasolina", "etanol", "oleo diesel"],
+    positive: ["fornecimento de combustível","fornecimento de combustivel","aquisição de combustível","aquisicao de combustivel","aquisição de combustíveis","aquisicao de combustiveis","combustível automotivo","combustivel automotivo","gasolina comum","gasolina aditivada","etanol","álcool combustível","oleo diesel","óleo diesel","diesel s-10","diesel s10","diesel s-500","abastecimento de frota","posto de combustível","posto de combustivel","ARLA 32","lubrificante automotivo"],
+    negative: ["software","sistema informatizado","gestão de abastecimento","cartão combustível","taxa de administração","esgoto","saneamento","obra civil","gênero alimentício","medicamento","tanque de combustível","bomba de combustível"],
+  },
+  {
     code: "automotive", label: "Oficina / autopeças", radius: 250,
     match: ["manutencao e reparacao de veiculos", "pecas e acessorios para veiculos", "oficina mecanica", "automoveis"],
     positive: ["manutenção de veículos","mecânica","autopeças","troca de óleo","freios","suspensão","alinhamento","balanceamento","pneus","baterias","elétrica automotiva","peças automotivas","filtros","lubrificantes"],
