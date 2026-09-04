@@ -26,6 +26,7 @@ const pageQuerySchema = z.object({
   page: z.number().int().positive().default(1),
   pageSize: z.number().int().min(10).max(500).default(100),
   agencyCnpj: z.string().regex(/^\d{14}$/).optional(),
+  unitCode: z.string().min(1).max(30).optional(),
   supplierDocument: z.string().min(1).optional(),
 });
 
@@ -128,6 +129,7 @@ export async function fetchComprasGovHistoricalItems(input: z.input<typeof pageQ
   url.searchParams.set("dataInclusaoPncpInicial", query.startDate);
   url.searchParams.set("dataInclusaoPncpFinal", query.endDate);
   if (query.agencyCnpj) url.searchParams.set("orgaoEntidadeCnpj", query.agencyCnpj);
+  if (query.unitCode) url.searchParams.set("unidadeOrgaoCodigoUnidade", query.unitCode);
   if (query.supplierDocument) url.searchParams.set("codFornecedor", query.supplierDocument);
   return request<ComprasGovProcurementItemRow>(url);
 }
@@ -140,6 +142,7 @@ export async function fetchComprasGovHistoricalResults(input: z.input<typeof pag
   url.searchParams.set("dataResultadoPncpInicial", query.startDate);
   url.searchParams.set("dataResultadoPncpFinal", query.endDate);
   if (query.agencyCnpj) url.searchParams.set("orgaoEntidadeCnpj", query.agencyCnpj);
+  if (query.unitCode) url.searchParams.set("unidadeOrgaoCodigoUnidade", query.unitCode);
   if (query.supplierDocument) url.searchParams.set("niFornecedor", query.supplierDocument);
   return request<ComprasGovResultRow>(url);
 }
