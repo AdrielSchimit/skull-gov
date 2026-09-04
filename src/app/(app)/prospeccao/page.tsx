@@ -7,6 +7,7 @@ import { getLatestSync } from "@/lib/data";
 import { formatDate } from "@/lib/format";
 import { getProspectingOpportunities, PROSPECTING_PROFILES, type ProspectingProfileKey } from "@/lib/prospecting";
 import { getSessionContext } from "@/lib/session-context";
+import styles from "./page.module.css";
 
 export const metadata = { title: "Prospecção" };
 
@@ -34,16 +35,16 @@ export default async function ProspectingPage({ searchParams }: { searchParams: 
     />
 
     <div className="content-stack">
-      <section className="panel prospect-hero">
+      <section className={`panel ${styles.hero}`}>
         <div>
           <span className="eyebrow">DEMONSTRAÇÃO AO VIVO</span>
           <h2>{niche.label}</h2>
           <p>{niche.description} O filtro atual considera oportunidades com distância calculada de até <strong>{radius} km de Barrinha/SP</strong>.</p>
         </div>
-        <div className="prospect-count"><strong>{result.count}</strong><span>abertas compatíveis</span></div>
+        <div className={styles.count}><strong>{result.count}</strong><span>abertas compatíveis</span></div>
       </section>
 
-      <form className="panel prospect-controls" method="get">
+      <form className={`panel ${styles.controls}`} method="get">
         <label><span>Nicho do comércio</span><select name="niche" defaultValue={nicheKey}>
           {Object.entries(PROSPECTING_PROFILES).map(([key, profile]) => <option value={key} key={key}>{profile.label}</option>)}
         </select></label>
@@ -53,7 +54,7 @@ export default async function ProspectingPage({ searchParams }: { searchParams: 
         <button className="button button-primary" type="submit"><Search size={16} />Aplicar perfil</button>
       </form>
 
-      <div className="prospect-script">
+      <div className={styles.script}>
         <Store size={18} />
         <div><strong>Roteiro de abordagem</strong><p>“Vocês já vendem para prefeitura, Estado ou outros órgãos? Eu desenvolvi uma plataforma que encontra oportunidades públicas compatíveis com o que vocês já vendem. Olha o que está aberto agora perto daqui.”</p></div>
       </div>
@@ -72,7 +73,7 @@ export default async function ProspectingPage({ searchParams }: { searchParams: 
 
       {result.data.length ? <div className="opportunity-list">{result.data.map((opportunity) => <OpportunityCard key={opportunity.id} opportunity={opportunity} />)}</div> : <EmptyState title="Ainda não apareceu lead nesse recorte" description="Clique em “Buscar oportunidades agora”. O SKULL GOV consulta PNCP e Compras.gov; se nenhuma contratação aberta corresponder ao nicho e raio, não inventamos resultado." />}
 
-      <section className="panel prospect-next-step"><Target size={20} /><div><strong>Gostou da demonstração?</strong><p>O próximo passo é cadastrar o CNPJ do comércio. O sistema identifica CNAEs, cria o tenant e monta o Radar exclusivo daquele cliente.</p></div><Link className="button button-secondary" href="/cadastro">Pré-cadastrar cliente <ArrowRight size={16} /></Link></section>
+      <section className={`panel ${styles.next}`}><Target size={20} /><div><strong>Gostou da demonstração?</strong><p>O próximo passo é cadastrar o CNPJ do comércio. O sistema identifica CNAEs, cria o tenant e monta o Radar exclusivo daquele cliente.</p></div><Link className="button button-secondary" href="/cadastro">Pré-cadastrar cliente <ArrowRight size={16} /></Link></section>
     </div>
   </>;
 }
