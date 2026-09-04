@@ -19,19 +19,22 @@ export const maxDuration = 60;
 const DEFAULT_CITIES = ["Ribeirão Preto", "Sertãozinho", "Barrinha", "Jaboticabal", "Araraquara"];
 const bodySchema = z.object({
   state: z.string().regex(/^[A-Z]{2}$/).default("SP"),
-  days: z.number().int().min(1).max(90).default(30),
-  itemLookbackDays: z.number().int().min(30).max(365).default(180),
+  days: z.number().int().min(1).max(365).default(90),
+  itemLookbackDays: z.number().int().min(30).max(730).default(365),
   cities: z.array(z.string().min(2).max(80)).max(12).default(DEFAULT_CITIES),
   agencyLimit: z.number().int().min(1).max(10).default(6),
-  pageLimit: z.number().int().min(1).max(3).default(2),
-  pageSize: z.number().int().min(50).max(500).default(250),
+  pageLimit: z.number().int().min(1).max(3).default(1),
+  pageSize: z.number().int().min(10).max(500).default(100),
 });
 
-type AgencySeed = {
+type BuyerSeed = {
   cnpj: string;
   name: string;
+  unitCode: string | null;
+  unitName: string | null;
   city: string | null;
   state: string;
+  municipalityCode: string | null;
   hits: number;
 };
 
@@ -48,8 +51,8 @@ type ProcurementSeed = {
   year: number | null;
   coverage_status: "partial";
   buyer_agency_cnpj: string;
-  buyer_uasg: null;
-  buyer_unit_name: null;
+  buyer_uasg: string | null;
+  buyer_unit_name: string | null;
 };
 
 const toIsoDate = (date: Date) => date.toISOString().slice(0, 10);
@@ -59,24 +62,33 @@ const normalizeText = (value: string | null | undefined) => (value ?? "")
   .trim()
   .toLowerCase();
 
-function addAgency(target: Map<string, AgencySeed>, input: Omit<AgencySeed, "hits">, weight = 1) {
+const buyerKey = (cnpj: string, unitCode: string | null | undefined) => `${cnpj}:${unitCode?.trim() || "entity"}`;
+const isLocallyScopedAgency = (name: string | null | undefined) => {
+  const value = normalizeText(name);
+  return value.includes("municipio") || value.includes("prefeitura") || value.includes("servico autonomo") || value.includes("camara municipal");
+};
+
+function addBuyer(target: Map<string, BuyerSeed>, input: Omit<BuyerSeed, "hits">, weight = 1) {
   const cnpj = normalizeCnpj(input.cnpj);
   if (!cnpj) return;
-  const current = target.get(cnpj);
+  const key = buyerKey(cnpj, input.unitCode);
+  const current = target.get(key);
   if (!current) {
-    target.set(cnpj, { ...input, cnpj, hits: weight });
+    target.set(key, { ...input, cnpj, hits: weight });
     return;
   }
-  target.set(cnpj, {
+  target.set(key, {
     ...current,
     name: current.name || input.name,
+    unitName: current.unitName ?? input.unitName,
     city: current.city ?? input.city,
     state: current.state || input.state,
+    municipalityCode: current.municipalityCode ?? input.municipalityCode,
     hits: current.hits + weight,
   });
 }
 
-async function collectItems(input: z.infer<typeof bodySchema>, agencyCnpj: string, startDate: string, endDate: string) {
+async function collectItems(input: z.infer<typeof bodySchema>, buyer: BuyerSeed, startDate: string, endDate: string) {
   const rows: ComprasGovProcurementItemRow[] = [];
   for (let page = 1; page <= input.pageLimit; page += 1) {
     const result = await fetchComprasGovHistoricalItems({
@@ -84,7 +96,8 @@ async function collectItems(input: z.infer<typeof bodySchema>, agencyCnpj: strin
       endDate,
       page,
       pageSize: input.pageSize,
-      agencyCnpj,
+      agencyCnpj: buyer.cnpj,
+      unitCode: buyer.unitCode ?? undefined,
     });
     rows.push(...(result.resultado ?? []));
     if (!result.totalPaginas || page >= result.totalPaginas) break;
@@ -92,7 +105,7 @@ async function collectItems(input: z.infer<typeof bodySchema>, agencyCnpj: strin
   return rows;
 }
 
-async function collectResults(input: z.infer<typeof bodySchema>, agencyCnpj: string, startDate: string, endDate: string) {
+async function collectResults(input: z.infer<typeof bodySchema>, buyer: BuyerSeed, startDate: string, endDate: string) {
   const rows: ComprasGovResultRow[] = [];
   for (let page = 1; page <= input.pageLimit; page += 1) {
     const result = await fetchComprasGovHistoricalResults({
@@ -100,7 +113,8 @@ async function collectResults(input: z.infer<typeof bodySchema>, agencyCnpj: str
       endDate,
       page,
       pageSize: input.pageSize,
-      agencyCnpj,
+      agencyCnpj: buyer.cnpj,
+      unitCode: buyer.unitCode ?? undefined,
     });
     rows.push(...(result.resultado ?? []));
     if (!result.totalPaginas || page >= result.totalPaginas) break;
@@ -158,20 +172,24 @@ export async function POST(request: Request) {
 
   try {
     const targetCities = new Set(input.cities.map(normalizeText));
-    const agencies = new Map<string, AgencySeed>();
+    const buyersByKey = new Map<string, BuyerSeed>();
 
     const { data: knownOpportunities } = await supabase
       .from("opportunities")
-      .select("agency_cnpj,agency_name,city,state")
+      .select("agency_cnpj,agency_name,unit_name,city,state")
       .eq("state", input.state)
       .in("city", input.cities)
       .limit(500);
     for (const row of knownOpportunities ?? []) {
-      if (row.agency_cnpj) addAgency(agencies, {
+      if (!row.agency_cnpj || !isLocallyScopedAgency(row.agency_name)) continue;
+      addBuyer(buyersByKey, {
         cnpj: row.agency_cnpj,
         name: row.agency_name ?? row.agency_cnpj,
+        unitCode: null,
+        unitName: row.unit_name ?? null,
         city: row.city ?? null,
         state: row.state ?? input.state,
+        municipalityCode: null,
       }, 3);
     }
 
@@ -193,44 +211,51 @@ export async function POST(request: Request) {
     for (const contracting of contractings) {
       const cnpj = contracting.orgaoEntidade?.cnpj;
       const city = contracting.unidadeOrgao?.municipioNome ?? null;
+      const unitCode = contracting.unidadeOrgao?.codigoUnidade?.trim() || null;
       if (!cnpj || (targetCities.size > 0 && !targetCities.has(normalizeText(city)))) continue;
-      addAgency(agencies, {
+      addBuyer(buyersByKey, {
         cnpj,
         name: contracting.orgaoEntidade?.razaoSocial ?? cnpj,
+        unitCode,
+        unitName: contracting.unidadeOrgao?.nomeUnidade ?? null,
         city,
         state: contracting.unidadeOrgao?.ufSigla ?? input.state,
+        municipalityCode: contracting.unidadeOrgao?.codigoIbge ?? null,
       });
     }
 
-    const selectedAgencies = [...agencies.values()]
-      .sort((a, b) => b.hits - a.hits || a.name.localeCompare(b.name, "pt-BR"))
+    const selectedBuyers = [...buyersByKey.values()]
+      .sort((a, b) => b.hits - a.hits || (a.city ?? "").localeCompare(b.city ?? "", "pt-BR") || a.name.localeCompare(b.name, "pt-BR"))
       .slice(0, input.agencyLimit);
-    if (!selectedAgencies.length) throw new Error("Nenhum órgão comprador foi encontrado no recorte regional informado.");
+    if (!selectedBuyers.length) throw new Error("Nenhuma unidade compradora foi encontrada no recorte regional informado.");
 
-    const selectedCnpjs = new Set(selectedAgencies.map((agency) => agency.cnpj));
+    const selectedBuyerKeys = new Set(selectedBuyers.map((buyer) => buyerKey(buyer.cnpj, buyer.unitCode)));
+    const selectedEntityCnpjs = new Set(selectedBuyers.filter((buyer) => !buyer.unitCode).map((buyer) => buyer.cnpj));
     const contractingsByControl = new Map<string, PncpContracting>();
     for (const contracting of contractings) {
       const control = contracting.numeroControlePNCP;
       const cnpj = normalizeCnpj(contracting.orgaoEntidade?.cnpj);
-      if (control && cnpj && selectedCnpjs.has(cnpj)) contractingsByControl.set(control, contracting);
+      const unitCode = contracting.unidadeOrgao?.codigoUnidade?.trim() || null;
+      if (!control || !cnpj) continue;
+      if (selectedBuyerKeys.has(buyerKey(cnpj, unitCode)) || selectedEntityCnpjs.has(cnpj)) contractingsByControl.set(control, contracting);
     }
 
-    const agencyBatches = await Promise.all(selectedAgencies.map(async (agency) => {
+    const buyerBatches = await Promise.all(selectedBuyers.map(async (buyer) => {
       const [items, results] = await Promise.all([
-        collectItems(input, agency.cnpj, itemStartDate, endDate),
-        collectResults(input, agency.cnpj, resultStartDate, endDate),
+        collectItems(input, buyer, itemStartDate, endDate),
+        collectResults(input, buyer, resultStartDate, endDate),
       ]);
-      return { agency, items, results };
+      return { buyer, items, results };
     }));
 
-    const buyers = selectedAgencies.map((agency) => ({
-      agency_cnpj: agency.cnpj,
-      agency_name: agency.name,
-      unit_name: null,
-      uasg: null,
-      city: agency.city,
-      state: agency.state,
-      municipality_code: null,
+    const buyers = selectedBuyers.map((buyer) => ({
+      agency_cnpj: buyer.cnpj,
+      agency_name: buyer.name,
+      unit_name: buyer.unitName,
+      uasg: buyer.unitCode,
+      city: buyer.city,
+      state: buyer.state,
+      municipality_code: buyer.municipalityCode,
     }));
     const procurements = new Map<string, ProcurementSeed>();
     const itemsPayload: Record<string, unknown>[] = [];
@@ -239,9 +264,14 @@ export async function POST(request: Request) {
     let rawItems = 0;
     let rawResults = 0;
 
-    const ensureProcurement = (key: string, agencyCnpj: string, sourceUrl: string, sourceUpdatedAt: string | null, rawHash: string | null) => {
+    const ensureProcurement = (key: string, fallbackBuyer: BuyerSeed, sourceUrl: string, sourceUpdatedAt: string | null, rawHash: string | null) => {
       const metadata = contractingForKey(key, contractingsByControl);
       const previous = procurements.get(key);
+      const metadataCnpj = normalizeCnpj(metadata?.orgaoEntidade?.cnpj);
+      const metadataUnitCode = metadata?.unidadeOrgao?.codigoUnidade?.trim() || null;
+      const buyer = metadataCnpj
+        ? selectedBuyers.find((candidate) => candidate.cnpj === metadataCnpj && (candidate.unitCode === metadataUnitCode || (!candidate.unitCode && selectedEntityCnpjs.has(metadataCnpj)))) ?? fallbackBuyer
+        : fallbackBuyer;
       procurements.set(key, {
         source_key: key,
         source_url: sourceUrl,
@@ -254,21 +284,20 @@ export async function POST(request: Request) {
         purchase_number: metadata?.numeroCompra ?? previous?.purchase_number ?? null,
         year: metadata?.anoCompra ?? previous?.year ?? null,
         coverage_status: "partial",
-        buyer_agency_cnpj: agencyCnpj,
-        buyer_uasg: null,
-        buyer_unit_name: null,
+        buyer_agency_cnpj: buyer.cnpj,
+        buyer_uasg: buyer.unitCode,
+        buyer_unit_name: buyer.unitName,
       });
     };
 
-    for (const batch of agencyBatches) {
+    for (const batch of buyerBatches) {
       rawItems += batch.items.length;
       rawResults += batch.results.length;
 
       for (const row of batch.items) {
         const normalized = normalizeComprasGovItem(row);
         if (!normalized) continue;
-        const agencyCnpj = normalizeCnpj(row.orgaoEntidadeCnpj) ?? batch.agency.cnpj;
-        ensureProcurement(normalized.procurementKey, agencyCnpj, normalized.provenance.sourceUrl, normalized.provenance.sourceUpdatedAt, normalized.provenance.rawHash);
+        ensureProcurement(normalized.procurementKey, batch.buyer, normalized.provenance.sourceUrl, normalized.provenance.sourceUpdatedAt, normalized.provenance.rawHash);
         itemsPayload.push({
           source_key: normalized.sourceKey,
           procurement_source_key: normalized.procurementKey,
@@ -294,8 +323,7 @@ export async function POST(request: Request) {
         const normalized = normalizeComprasGovResult(row);
         if (!normalized) continue;
         const procurementKey = procurementKeyFromRaw(row) ?? normalized.result.procurementKey;
-        const agencyCnpj = normalizeCnpj(row.orgaoEntidadeCnpj) ?? batch.agency.cnpj;
-        ensureProcurement(procurementKey, agencyCnpj, normalized.result.provenance.sourceUrl, normalized.result.provenance.sourceUpdatedAt, normalized.result.provenance.rawHash);
+        ensureProcurement(procurementKey, batch.buyer, normalized.result.provenance.sourceUrl, normalized.result.provenance.sourceUpdatedAt, normalized.result.provenance.rawHash);
         const supplierSourceKey = normalized.supplier.sourceAliases[0]?.sourceKey;
         if (!supplierSourceKey || !row.idCompraItem) continue;
         suppliers.set(supplierSourceKey, {
@@ -345,7 +373,12 @@ export async function POST(request: Request) {
       source_system: "compras_gov",
       resource: "regional_items_results",
       cursor_key: `${input.state}:${input.cities.map(normalizeText).sort().join("|")}`,
-      cursor_value: { resultStartDate, itemStartDate, endDate, agencyCnpjs: selectedAgencies.map((agency) => agency.cnpj) },
+      cursor_value: {
+        resultStartDate,
+        itemStartDate,
+        endDate,
+        buyers: selectedBuyers.map((buyer) => ({ cnpj: buyer.cnpj, unitCode: buyer.unitCode, city: buyer.city })),
+      },
       coverage_start: resultStartDate,
       coverage_end: endDate,
       updated_at: new Date().toISOString(),
@@ -365,7 +398,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       scope: { state: input.state, cities: input.cities, resultStartDate, itemStartDate, endDate },
-      agencies: selectedAgencies.map(({ cnpj, name, city }) => ({ cnpj, name, city })),
+      buyers: selectedBuyers.map(({ cnpj, name, unitCode, unitName, city }) => ({ cnpj, name, unitCode, unitName, city })),
       fetched: { items: rawItems, results: rawResults },
       normalized: { procurements: procurements.size, items: itemsPayload.length, suppliers: suppliers.size, results: resultsPayload.length },
       persisted,
