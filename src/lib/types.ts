@@ -1,6 +1,8 @@
 export type UserRole = "skull_admin" | "gestor" | "cliente_admin" | "cliente_user";
 export type Recommendation = "atacar" | "analisar" | "evitar";
 export type WorkingCapital = "baixo" | "medio" | "alto" | "critico";
+export type ParticipantEligibility = "individual_allowed" | "company_required" | "unknown";
+export type OpportunityVertical = "software" | "fuel_station" | "food_retail" | "construction_retail" | "automotive" | "office_stationery" | "pharmacy" | "clothing" | "architecture" | "unknown";
 
 export interface OpportunityRequirements {
   technicalFit: string;
@@ -49,6 +51,15 @@ export interface Opportunity {
   recommendation: Recommendation;
   score_explanation: string[];
   requirements: OpportunityRequirements;
+  vertical?: OpportunityVertical;
+  vertical_confidence?: number | null;
+  vertical_evidence?: string[] | null;
+  classification_version?: string | null;
+  classified_at?: string | null;
+  participant_eligibility?: ParticipantEligibility | null;
+  eligibility_confidence?: number | null;
+  eligibility_evidence?: string[] | null;
+  eligibility_checked_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }

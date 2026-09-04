@@ -1,5 +1,6 @@
 import "server-only";
 
+import { classifyVertical, type Vertical } from "@/lib/classification";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Opportunity } from "@/lib/types";
 
@@ -35,26 +36,29 @@ export async function getVerticalRadar(slug: string) {
 
   if (radarError || !radar) return { radar: null as VerticalRadar | null, opportunities: [] as Opportunity[], error: radarError?.message ?? "Radar não encontrado." };
 
-  const terms = ((radar.positive_keywords ?? []) as string[])
-    .map((term) => term.replace(/[%_,()]/g, "").trim())
-    .filter(Boolean)
-    .slice(0, 30);
-
   const now = new Date().toISOString();
   let request = supabase
     .from("opportunities")
     .select("*")
     .or(`closes_at.gte.${now},closes_at.is.null`)
     .order("closes_at", { ascending: true, nullsFirst: false })
-    .limit(50);
+    .limit(1000);
 
-  if (terms.length) request = request.or(terms.map((term) => `object.ilike.%${term}%`).join(","));
   request = request.or(`distance_km.lte.${radar.radius_km},distance_km.is.null,remote_execution.eq.true`);
 
   const { data, error } = await request;
+  const verticalBySlug: Record<string, Vertical> = {
+    "arquitetura-urbanismo": "architecture",
+    software: "software",
+    "posto-combustivel": "fuel_station",
+  };
+  const expectedVertical = verticalBySlug[slug];
+  const opportunities = ((data ?? []) as unknown as Opportunity[])
+    .filter((item) => !expectedVertical || classifyVertical({ object: item.object }).vertical === expectedVertical)
+    .slice(0, 50);
   return {
     radar: radar as VerticalRadar,
-    opportunities: (data ?? []) as unknown as Opportunity[],
+    opportunities,
     error: error?.message ?? null,
   };
 }

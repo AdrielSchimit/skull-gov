@@ -2,6 +2,59 @@
 
 Projeto oficial: `skull-gov` (`kctpcbgaescujhsacqmm`, `sa-east-1`). Nenhuma alteração foi aplicada automaticamente porque esta entrega não possui acesso administrativo ao projeto. O SQL abaixo deve ser revisado e executado pelo administrador no SQL Editor do projeto oficial.
 
+## 0. Campos de classificação a conferir no projeto oficial
+
+O código detecta esses campos em runtime: quando existem, as sincronizações persistem a classificação; enquanto não existem, continuam importando todas as oportunidades e classificam em memória sem falhar. O administrador deve conferir o schema antes de aplicar qualquer trecho, para não conflitar com alterações já feitas no projeto. Em uma instalação nova, execute primeiro a seção 1 e só então este bloco complementar.
+
+```sql
+do $$ begin
+  if to_regclass('public.opportunities') is not null then
+    alter table public.opportunities
+      add column if not exists vertical text check (vertical in ('software','fuel_station','food_retail','construction_retail','automotive','office_stationery','pharmacy','clothing','architecture','unknown')),
+      add column if not exists vertical_confidence numeric(4,3) check (vertical_confidence between 0 and 1),
+      add column if not exists vertical_evidence jsonb not null default '[]'::jsonb,
+      add column if not exists classification_version text,
+      add column if not exists classified_at timestamptz,
+      add column if not exists participant_eligibility text check (participant_eligibility in ('individual_allowed','company_required','unknown')),
+      add column if not exists eligibility_confidence numeric(4,3) check (eligibility_confidence between 0 and 1),
+      add column if not exists eligibility_evidence jsonb not null default '[]'::jsonb,
+      add column if not exists eligibility_checked_at timestamptz;
+  end if;
+end $$;
+```
+
+Os itens e documentos são a fonte preferencial para refinar elegibilidade. Se as tabelas ainda não existirem, o contrato mínimo esperado pela aplicação futura é:
+
+```sql
+create table if not exists public.opportunity_items (
+  id uuid primary key default gen_random_uuid(),
+  opportunity_id uuid not null references public.opportunities(id) on delete cascade,
+  external_id text,
+  description text not null,
+  quantity numeric,
+  unit text,
+  raw_data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.opportunity_documents (
+  id uuid primary key default gen_random_uuid(),
+  opportunity_id uuid not null references public.opportunities(id) on delete cascade,
+  external_id text,
+  title text not null,
+  document_type text,
+  source_url text,
+  extracted_text text,
+  raw_data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists opportunity_items_opportunity_idx on public.opportunity_items (opportunity_id);
+create index if not exists opportunity_documents_opportunity_idx on public.opportunity_documents (opportunity_id);
+```
+
+Antes de expor essas tabelas pela Data API, habilitar RLS, criar policies de leitura com o mesmo escopo de `opportunities`, conceder somente os privilégios necessários a `authenticated` e validar no RLS Tester. Não usar `service_role` no frontend nem contornar RLS para popular os dados.
+
 ## 1. Schema, índices e RLS
 
 ```sql
@@ -91,6 +144,15 @@ create table if not exists public.opportunities (
   recommendation public.recommendation not null,
   score_explanation jsonb not null default '[]',
   requirements jsonb not null default '{}',
+  vertical text check (vertical in ('software','fuel_station','food_retail','construction_retail','automotive','office_stationery','pharmacy','clothing','architecture','unknown')),
+  vertical_confidence numeric(4,3) check (vertical_confidence between 0 and 1),
+  vertical_evidence jsonb not null default '[]',
+  classification_version text,
+  classified_at timestamptz,
+  participant_eligibility text check (participant_eligibility in ('individual_allowed','company_required','unknown')),
+  eligibility_confidence numeric(4,3) check (eligibility_confidence between 0 and 1),
+  eligibility_evidence jsonb not null default '[]',
+  eligibility_checked_at timestamptz,
   raw_hash text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -146,6 +208,7 @@ create index if not exists opportunities_closes_at_idx on public.opportunities (
 create index if not exists opportunities_published_at_idx on public.opportunities (published_at desc);
 create index if not exists opportunities_radar_idx on public.opportunities (recommendation, working_capital, skull_score desc);
 create index if not exists opportunities_geo_idx on public.opportunities (state, city, distance_km);
+create index if not exists opportunities_vertical_open_idx on public.opportunities (vertical, participant_eligibility, closes_at);
 create index if not exists companies_tenant_idx on public.companies (tenant_id);
 create index if not exists documents_company_idx on public.company_documents (company_id, expires_at);
 create index if not exists participations_company_idx on public.participations (company_id, stage);

@@ -100,6 +100,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .decision-atacar { color: var(--green-strong); }
 .decision-analisar { color: var(--amber); }
 .decision-evitar { color: var(--red); }
+.card-badges { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.eligibility { border-radius: 999px; padding: 4px 7px; font-size: 9px; font-weight: 750; letter-spacing: .06em; }
+.eligibility-individual_allowed { background: var(--green-soft); color: var(--green-strong); }
+.eligibility-company_required { background: var(--amber-soft); color: var(--amber); }
+.eligibility-unknown { background: #f1f4f2; color: var(--muted); }
 
 .opportunity-list { display: grid; gap: 12px; }
 .opportunity-card { position: relative; border: 1px solid var(--line); border-radius: var(--radius); background: white; padding: 19px 20px 17px; transition: border .16s, box-shadow .16s, transform .16s; }
@@ -126,6 +131,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .search-form svg { color: var(--muted); }
 .filter-pill { display: inline-flex; min-height: 34px; align-items: center; border: 1px solid var(--line); border-radius: 9px; padding: 0 11px; color: var(--muted); font-size: 11px; font-weight: 650; }
 .filter-pill.active, .filter-pill:hover { border-color: #b8dec9; background: var(--green-soft); color: var(--green-strong); }
+.filter-label { padding: 0 8px; color: var(--muted); font-family: var(--font-geist-mono), monospace; font-size: 9px; font-weight: 750; letter-spacing: .1em; }
 .pagination { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 12px; }
 
 .detail-grid { display: grid; grid-template-columns: minmax(0,1.6fr) minmax(280px,.7fr); gap: 18px; }

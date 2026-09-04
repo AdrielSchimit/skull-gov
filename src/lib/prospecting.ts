@@ -6,10 +6,11 @@ import {
   isProspectingProfileKey,
   matchesProspectingOpportunity,
   PROSPECTING_PROFILES,
+  resolveProspectingProfileKey,
   type ProspectingProfileKey,
 } from "@/lib/niche-matcher";
 
-export { isProspectingProfileKey, matchesProspectingOpportunity, PROSPECTING_PROFILES };
+export { isProspectingProfileKey, matchesProspectingOpportunity, PROSPECTING_PROFILES, resolveProspectingProfileKey };
 export type { ProspectingProfileKey };
 
 export async function getProspectingOpportunities(profileKey: ProspectingProfileKey, radiusKm: number) {

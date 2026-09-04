@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { buildClassificationFields } from "@/lib/classification";
 import { fetchOpenContractings } from "@/lib/pncp/pncp-client";
 import { normalizeContracting } from "@/lib/pncp/pncp-normalizer";
-import { matchesProspectingOpportunity, PROSPECTING_PROFILES, type ProspectingProfileKey } from "@/lib/prospecting";
+import { matchesProspectingOpportunity, resolveProspectingProfileKey, type ProspectingProfileKey } from "@/lib/prospecting";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Opportunity } from "@/lib/types";
 
@@ -44,13 +45,14 @@ export async function POST(request: Request) {
   if (profile?.role !== "skull_admin") return NextResponse.json({ error: "Acesso restrito à gestão SKULL." }, { status: 403 });
 
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success || !(parsed.data.niche in PROSPECTING_PROFILES)) return NextResponse.json({ error: "Perfil de prospecção inválido." }, { status: 400 });
+  if (!parsed.success || !resolveProspectingProfileKey(parsed.data.niche)) return NextResponse.json({ error: "Perfil de prospecção inválido." }, { status: 400 });
 
-  const niche = parsed.data.niche as ProspectingProfileKey;
+  const niche = resolveProspectingProfileKey(parsed.data.niche) as ProspectingProfileKey;
   const radius = parsed.data.radius;
   const cities = REGION.filter((item) => item.km <= radius);
   const horizon = new Date(Date.now() + 45 * 86_400_000);
-  const matches = new Map<string, Normalized>();
+  const collected = new Map<string, Normalized>();
+  const compatible = new Set<string>();
   let consulted = 0;
   let errors = 0;
 
@@ -78,18 +80,25 @@ export async function POST(request: Request) {
         if (!normalized) continue;
         // Usa a distância regional conhecida na demonstração, mesmo se o normalizador ainda não possuir a cidade.
         const withDistance = { ...normalized, distance_km: result.value.city.km } as Normalized;
-        if (!matchesProspectingOpportunity(withDistance as Opportunity, niche, radius)) continue;
-        matches.set(withDistance.pncp_id, withDistance);
+        collected.set(withDistance.pncp_id, withDistance);
+        if (matchesProspectingOpportunity(withDistance as Opportunity, niche, radius)) compatible.add(withDistance.pncp_id);
       }
     }
   }
 
   let inserted = 0;
   let updated = 0;
-  const opportunities = [...matches.values()];
+  // A sincronização alimenta o acervo central completo; a vertical só determina o recorte exibido.
+  const opportunities = [...collected.values()];
+  const { error: classificationColumnsError } = await supabase
+    .from("opportunities")
+    .select("vertical,participant_eligibility")
+    .limit(1);
+  const canPersistClassification = !classificationColumnsError;
   for (const item of opportunities) {
     const { data: existing } = await supabase.from("opportunities").select("pncp_id").eq("pncp_id", item.pncp_id).maybeSingle();
-    const { error } = await supabase.from("opportunities").upsert(item, { onConflict: "pncp_id" });
+    const row = canPersistClassification ? { ...item, ...buildClassificationFields({ object: item.object }) } : item;
+    const { error } = await supabase.from("opportunities").upsert(row, { onConflict: "pncp_id" });
     if (error) { errors += 1; continue; }
     if (existing) updated += 1; else inserted += 1;
   }
@@ -99,7 +108,7 @@ export async function POST(request: Request) {
     started_by: user.id,
     started_at: new Date().toISOString(),
     finished_at: new Date().toISOString(),
-    filters: { mode: "prospeccao", niche, radius, cities: cities.map((item) => item.city), source: "PNCP propostas abertas" },
+    filters: { mode: "prospeccao", niche, radius, compatible: compatible.size, cities: cities.map((item) => item.city), source: "PNCP propostas abertas" },
     found_count: consulted,
     inserted_count: inserted,
     updated_count: updated,
@@ -108,7 +117,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     consulted,
-    compatible: matches.size,
+    compatible: compatible.size,
     inserted,
     updated,
     errors,

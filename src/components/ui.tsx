@@ -2,6 +2,7 @@ import { AlertTriangle, ArrowUpRight, DatabaseZap, Search } from "lucide-react";
 import Link from "next/link";
 import type { Opportunity, Recommendation } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { classifyEligibility } from "@/lib/classification/eligibility-classifier";
 
 export function PageHeader({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) {
   return <header className="page-header"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>{action && <div className="page-action">{action}</div>}</header>;
@@ -27,10 +28,12 @@ export function ScoreGauge({ score, label = "SKULL Score" }: { score: number; la
   return <div className="score-gauge" style={{ "--score": `${score * 3.6}deg` } as React.CSSProperties}><span><strong>{score}</strong><small>{label}</small></span></div>;
 }
 
-export function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
+export function OpportunityCard({ opportunity, showEligibility = false }: { opportunity: Opportunity; showEligibility?: boolean }) {
+  const eligibility = opportunity.participant_eligibility ?? classifyEligibility({ object: opportunity.object }).status;
+  const eligibilityLabel = eligibility === "individual_allowed" ? "ACEITA PF" : eligibility === "company_required" ? "EXIGE PJ" : "NÃO ANALISADO";
   return (
     <article className="opportunity-card">
-      <div className="card-topline"><RecommendationBadge value={opportunity.recommendation} /><span>{opportunity.city}/{opportunity.state}{opportunity.distance_km !== null ? ` · ${opportunity.distance_km} km` : ""}</span></div>
+      <div className="card-topline"><span className="card-badges"><RecommendationBadge value={opportunity.recommendation} />{showEligibility && <span className={`eligibility eligibility-${eligibility}`}>{eligibilityLabel}</span>}</span><span>{opportunity.city}/{opportunity.state}{opportunity.distance_km !== null ? ` · ${opportunity.distance_km} km` : ""}</span></div>
       <div className="opportunity-main">
         <div><span className="agency">{opportunity.agency_name}</span><h2>{opportunity.object}</h2></div>
         <ScoreGauge score={opportunity.skull_score} />

@@ -10,6 +10,10 @@ export interface PageResult<T> {
   error: string | null;
 }
 
+export async function getServerTimestamp() {
+  return Date.now();
+}
+
 export async function getCurrentUser() {
   const supabase = await createServerSupabaseClient();
   if (!supabase) return { configured: false, user: null, role: null as UserRole | null };

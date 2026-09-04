@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { buildClassificationFields, classifyVertical, type Vertical } from "@/lib/classification";
 import { fetchPublishedContractings, PNCP_MODALITIES } from "@/lib/pncp/pncp-client";
 import { normalizeContracting } from "@/lib/pncp/pncp-normalizer";
 import { COMPRAS_GOV_MODALITIES, fetchComprasGovContractings } from "@/lib/sources/compras-gov";
@@ -107,6 +108,16 @@ export async function POST(request: Request) {
     }
 
     const opportunities = [...normalized.values()];
+    const verticals = opportunities.reduce<Partial<Record<Vertical, number>>>((counts, item) => {
+      const vertical = classifyVertical({ object: item.object }).vertical;
+      counts[vertical] = (counts[vertical] ?? 0) + 1;
+      return counts;
+    }, {});
+    const { error: classificationColumnsError } = await supabase
+      .from("opportunities")
+      .select("vertical,participant_eligibility")
+      .limit(1);
+    const canPersistClassification = !classificationColumnsError;
     for (let offset = 0; offset < opportunities.length; offset += 100) {
       const batch = opportunities.slice(offset, offset + 100);
       const ids = batch.map((item) => item.pncp_id);
@@ -121,7 +132,10 @@ export async function POST(request: Request) {
           source_refs: { ...(previous.source_refs ?? {}), ...item.source_refs },
         } : item;
       });
-      const { error: upsertError } = await supabase.from("opportunities").upsert(mergedBatch, { onConflict: "pncp_id" });
+      const classifiedBatch = canPersistClassification
+        ? mergedBatch.map((item) => ({ ...item, ...buildClassificationFields({ object: item.object }) }))
+        : mergedBatch;
+      const { error: upsertError } = await supabase.from("opportunities").upsert(classifiedBatch, { onConflict: "pncp_id" });
       if (upsertError) throw upsertError;
       const existingCount = batch.filter((item) => existingMap.has(item.pncp_id)).length;
       updated += existingCount;
@@ -129,7 +143,7 @@ export async function POST(request: Request) {
     }
 
     await supabase.from("sync_runs").update({ status: "completed", finished_at: new Date().toISOString(), found_count: found, inserted_count: inserted, updated_count: updated, error_count: errors }).eq("id", run.id);
-    return NextResponse.json({ found, inserted, updated, errors, unique: normalized.size, sources: { PNCP: pncp, "Compras.gov": comprasGov } });
+    return NextResponse.json({ found, inserted, updated, errors, unique: normalized.size, verticals, sources: { PNCP: pncp, "Compras.gov": comprasGov } });
   } catch (error) {
     const message = error instanceof Error ? error.message.slice(0, 500) : "Falha desconhecida.";
     await supabase.from("sync_runs").update({ status: "failed", finished_at: new Date().toISOString(), found_count: normalized.size, inserted_count: inserted, updated_count: updated, error_count: 1, error_message: message }).eq("id", run.id);

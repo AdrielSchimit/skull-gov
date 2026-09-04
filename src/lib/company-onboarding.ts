@@ -1,5 +1,7 @@
 import "server-only";
 
+import { VERTICAL_RULES, type Vertical } from "@/lib/classification";
+
 const BRASIL_API = "https://brasilapi.com.br/api/cnpj/v1";
 
 type BrasilApiCompany = {
@@ -33,68 +35,26 @@ function normalize(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
-const PROFILES = [
-  {
-    code: "construction_retail", label: "Materiais de construção", radius: 300,
-    match: ["material de construcao", "ferragens", "madeira", "cimento", "tintas", "hidraul", "eletric", "construcao"],
-    positive: ["material de construção","materiais de construção","cimento","argamassa","tinta","pintura","elétrica","hidráulico","ferragens","madeira","aço","telha","piso","revestimento","ferramentas","EPI","bloco","areia","brita","PVC","tubos","conexões","escadas"],
-    negative: ["software","medicamento","gênero alimentício","veículo","serviço médico"],
-  },
-  {
-    code: "fuel_retail", label: "Posto / combustíveis", radius: 120,
-    match: ["comercio varejista de combustiveis", "posto de combustiveis", "combustiveis para veiculos", "gasolina", "etanol", "oleo diesel"],
-    positive: ["fornecimento de combustível","fornecimento de combustivel","aquisição de combustível","aquisicao de combustivel","aquisição de combustíveis","aquisicao de combustiveis","combustível automotivo","combustivel automotivo","gasolina comum","gasolina aditivada","etanol","álcool combustível","oleo diesel","óleo diesel","diesel s-10","diesel s10","diesel s-500","abastecimento de frota","posto de combustível","posto de combustivel","ARLA 32","lubrificante automotivo"],
-    negative: ["software","sistema informatizado","gestão de abastecimento","cartão combustível","taxa de administração","esgoto","saneamento","obra civil","gênero alimentício","medicamento","tanque de combustível","bomba de combustível"],
-  },
-  {
-    code: "automotive", label: "Oficina / autopeças", radius: 250,
-    match: ["manutencao e reparacao de veiculos", "pecas e acessorios para veiculos", "oficina mecanica", "automoveis"],
-    positive: ["manutenção de veículos","mecânica","autopeças","troca de óleo","freios","suspensão","alinhamento","balanceamento","pneus","baterias","elétrica automotiva","peças automotivas","filtros","lubrificantes"],
-    negative: ["software","construção civil","medicamento","gênero alimentício"],
-  },
-  {
-    code: "architecture_urbanism", label: "Arquitetura, urbanismo e paisagismo", radius: 300,
-    match: ["servicos de arquitetura", "arquitetura", "urbanismo", "paisagismo", "engenharia"],
-    positive: ["projeto arquitetônico","arquitetura","urbanismo","paisagismo","acessibilidade","levantamento arquitetônico","estudo preliminar","projeto executivo","fachada","interiores","praça","parque","arborização","revitalização urbana"],
-    negative: ["fornecimento de medicamentos","gênero alimentício","toner","combustível"],
-  },
-  {
-    code: "technology", label: "Tecnologia e software", radius: 200,
-    match: ["desenvolvimento de programas", "tecnologia da informacao", "software", "consultoria em tecnologia", "tratamento de dados"],
-    positive: ["software","sistema","site","portal","aplicativo","dashboard","automação","integração","API","SaaS","hospedagem","cloud","suporte de TI","desenvolvimento","digitalização","plataforma web","inteligência artificial"],
-    negative: ["material de construção","medicamento","gênero alimentício","veículo","mobiliário"],
-  },
-  {
-    code: "food_retail", label: "Mercado / alimentos", radius: 180,
-    match: ["comercio varejista de mercadorias em geral", "supermercado", "minimercado", "alimentos"],
-    positive: ["gêneros alimentícios","alimentos","cesta básica","hortifruti","bebidas","mercearia","produtos alimentícios","água mineral","café","açúcar","arroz","feijão","leite"],
-    negative: ["software","obra civil","medicamento","serviço de engenharia"],
-  },
-  {
-    code: "office_stationery", label: "Papelaria / suprimentos", radius: 220,
-    match: ["artigos de papelaria", "papelaria", "material de escritorio"],
-    positive: ["material de escritório","papelaria","papel A4","caneta","pasta","envelope","material escolar","suprimentos","toner","cartucho"],
-    negative: ["obra civil","medicamento","alimentos","veículos"],
-  },
-  {
-    code: "pharmacy", label: "Farmácia / produtos de saúde", radius: 180,
-    match: ["produtos farmaceuticos", "farmacia", "medicamentos"],
-    positive: ["medicamentos","material hospitalar","insumos de saúde","produtos farmacêuticos","curativos","seringas","EPIs hospitalares"],
-    negative: ["software","obra civil","gênero alimentício","veículo"],
-  },
-  {
-    code: "clothing", label: "Vestuário / confecção", radius: 220,
-    match: ["artigos do vestuario", "confeccao", "roupas", "calcados"],
-    positive: ["uniformes","vestuário","camisetas","calças","jalecos","calçados","confecção","EPI vestuário"],
-    negative: ["software","obra civil","medicamento","alimentos"],
-  },
-] as const;
+const CNAE_PROFILES: ReadonlyArray<{ vertical: Exclude<Vertical, "unknown">; match: readonly string[] }> = [
+  { vertical: "construction_retail", match: ["material de construcao", "ferragens", "madeira", "cimento", "tintas", "hidraul", "eletric", "construcao"] },
+  { vertical: "fuel_station", match: ["comercio varejista de combustiveis", "posto de combustiveis", "combustiveis para veiculos", "gasolina", "etanol", "oleo diesel"] },
+  { vertical: "automotive", match: ["manutencao e reparacao de veiculos", "pecas e acessorios para veiculos", "oficina mecanica", "automoveis"] },
+  { vertical: "architecture", match: ["servicos de arquitetura", "arquitetura", "urbanismo", "paisagismo", "engenharia"] },
+  { vertical: "software", match: ["desenvolvimento de programas", "tecnologia da informacao", "software", "consultoria em tecnologia", "tratamento de dados"] },
+  { vertical: "food_retail", match: ["comercio varejista de mercadorias em geral", "supermercado", "minimercado", "alimentos"] },
+  { vertical: "office_stationery", match: ["artigos de papelaria", "papelaria", "material de escritorio"] },
+  { vertical: "pharmacy", match: ["produtos farmaceuticos", "farmacia", "medicamentos"] },
+  { vertical: "clothing", match: ["artigos do vestuario", "confeccao", "roupas", "calcados"] },
+];
 
 function classify(cnaeText: string) {
   const value = normalize(cnaeText);
-  const winner = PROFILES.map((profile) => ({ profile, score: profile.match.reduce((n, term) => n + (value.includes(term) ? 1 : 0), 0) }))
+  const winner = CNAE_PROFILES.map((profile) => ({ profile, score: profile.match.reduce((n, term) => n + (value.includes(term) ? 1 : 0), 0) }))
     .sort((a, b) => b.score - a.score)[0];
-  if (winner && winner.score > 0) return winner.profile;
+  if (winner && winner.score > 0) {
+    const rule = VERTICAL_RULES.find((candidate) => candidate.vertical === winner.profile.vertical);
+    if (rule) return { code: rule.vertical, label: rule.label, radius: rule.defaultRadius, positive: rule.positive.map(({ term }) => term), negative: [...rule.negative] };
+  }
   return {
     code: "general_supplier", label: "Fornecedor geral", radius: 250,
     positive: ["fornecimento","aquisição","registro de preços","serviços"],

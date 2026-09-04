@@ -4,6 +4,7 @@ import { EmptyState, PageHeader, SetupNotice, DataError, OpportunityCard } from 
 import { formatCurrency } from "@/lib/format";
 import { getCompanyAwareOpportunities } from "@/lib/client-opportunities";
 import { getSessionContext } from "@/lib/session-context";
+import { getServerTimestamp } from "@/lib/data";
 
 export const metadata = { title: "Dashboard" };
 
@@ -12,10 +13,12 @@ function Metric({ label, value, note, icon: Icon, highlight = false }: { label: 
 }
 
 export default async function DashboardPage() {
-  const session = await getSessionContext();
-  const radar = await getCompanyAwareOpportunities({ pageSize: 50 });
+  const [session, radar, now] = await Promise.all([
+    getSessionContext(),
+    getCompanyAwareOpportunities({ pageSize: 50 }),
+    getServerTimestamp(),
+  ]);
   const isClient = session.role !== "skull_admin" && !!session.companyName;
-  const now = Date.now();
   const rows = radar.data;
   const attack = rows.filter((r) => r.recommendation === "atacar");
   const closingSoon = rows.filter((r) => r.closes_at && new Date(r.closes_at).getTime() >= now && new Date(r.closes_at).getTime() <= now + 48 * 3600_000);

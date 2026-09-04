@@ -1,26 +1,14 @@
 import "server-only";
 
+import { classifyEligibility, classifyVertical, type ParticipantEligibility, type Vertical } from "@/lib/classification";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   isProspectingProfileKey,
   matchesProspectingOpportunity,
+  resolveProspectingProfileKey,
   type ProspectingProfileKey,
 } from "@/lib/niche-matcher";
 import type { Opportunity, UserRole } from "@/lib/types";
-
-const SKULL_TECH_TERMS = [
-  "software", "sistema", "sistemas", "site", "website", "portal", "aplicativo", "app", "dashboard",
-  "automação", "automatização", "integração", "API", "SaaS", "hospedagem", "cloud", "nuvem",
-  "suporte de TI", "tecnologia da informação", "manutenção de sistema", "desenvolvimento de software",
-  "desenvolvimento web", "digitalização", "plataforma web", "inteligência artificial",
-];
-
-const SKULL_TECH_NEGATIVE = [
-  "material de construção", "materiais de construção", "cimento", "argamassa", "madeira", "brita",
-  "paisagismo", "urbanismo", "projeto arquitetônico", "arquitetura", "obra civil", "obras", "construção",
-  "cercamento", "requalificação", "pavimentação", "reforma", "engenharia civil", "ferramentas",
-  "gêneros alimentícios", "generos alimenticios", "cesta básica", "cesta basica", "hortifruti", "medicamento",
-];
 
 function cleanTerms(values: string[], max = 40) {
   return values.map((term) => term.replace(/[%_,()]/g, "").trim()).filter(Boolean).slice(0, max);
@@ -30,14 +18,12 @@ function normalize(value: string | null | undefined) {
   return (value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
-function containsAny(value: string, terms: string[]) {
-  const normalized = normalize(value);
-  return terms.some((term) => normalized.includes(normalize(term)));
+function opportunityVertical(opportunity: Opportunity): Vertical {
+  return opportunity.vertical ?? classifyVertical({ object: opportunity.object }).vertical;
 }
 
-function isStrictSkullTech(opportunity: Opportunity) {
-  const object = String(opportunity.object ?? "");
-  return containsAny(object, SKULL_TECH_TERMS) && !containsAny(object, SKULL_TECH_NEGATIVE);
+function opportunityEligibility(opportunity: Opportunity): ParticipantEligibility {
+  return opportunity.participant_eligibility ?? classifyEligibility({ object: opportunity.object }).status;
 }
 
 function matchesTextSearch(opportunity: Opportunity, query: string | undefined) {
@@ -46,7 +32,7 @@ function matchesTextSearch(opportunity: Opportunity, query: string | undefined) 
   return normalize(opportunity.object).includes(q) || normalize(opportunity.agency_name).includes(q);
 }
 
-export async function getCompanyAwareOpportunities(options: { page?: number; pageSize?: number; filter?: string; query?: string } = {}) {
+export async function getCompanyAwareOpportunities(options: { page?: number; pageSize?: number; filter?: string; query?: string; vertical?: Vertical; eligibility?: ParticipantEligibility } = {}) {
   const supabase = await createServerSupabaseClient();
   if (!supabase) return { data: [] as Opportunity[], count: 0, configured: false, error: null as string | null, companyName: null as string | null, radiusKm: null as number | null };
 
@@ -66,8 +52,6 @@ export async function getCompanyAwareOpportunities(options: { page?: number; pag
   if (role === "skull_admin") {
     companyName = "SKULL Tecnologia";
     radiusKm = 200;
-    positiveTerms = SKULL_TECH_TERMS;
-    negativeTerms = SKULL_TECH_NEGATIVE;
   } else if (tenantId) {
     const { data: company } = await supabase.from("companies").select("trade_name,preferences,positive_keywords,negative_keywords").eq("tenant_id", tenantId).limit(1).maybeSingle();
     if (company) {
@@ -89,8 +73,10 @@ export async function getCompanyAwareOpportunities(options: { page?: number; pag
     if (options.filter === "drive") adminRequest = adminRequest.lte("distance_km", radiusKm ?? 200);
     if (options.filter === "attack") adminRequest = adminRequest.eq("recommendation", "atacar");
     const { data, error } = await adminRequest;
+    const vertical = options.vertical ?? "software";
     const filtered = ((data ?? []) as unknown as Opportunity[])
-      .filter(isStrictSkullTech)
+      .filter((item) => opportunityVertical(item) === vertical)
+      .filter((item) => !options.eligibility || opportunityEligibility(item) === options.eligibility)
       .filter((item) => matchesTextSearch(item, options.query));
     const start = (page - 1) * pageSize;
     return { data: filtered.slice(start, start + pageSize), count: filtered.length, configured: true, error: error?.message ?? null, companyName, radiusKm };
@@ -99,12 +85,13 @@ export async function getCompanyAwareOpportunities(options: { page?: number; pag
   // Known retail niches are filtered in application code with the same strict classifier used by Modo Gestor.
   // This prevents cross-tenant noise such as software, sewer works or packaging that only mention a niche word in passing.
   if (clientMode && isProspectingProfileKey(clientMode)) {
+    const canonicalClientMode = resolveProspectingProfileKey(clientMode) as ProspectingProfileKey;
     let clientRequest = supabase.from("opportunities").select("*").or(`closes_at.gte.${new Date().toISOString()},closes_at.is.null`).order("closes_at", { ascending: true, nullsFirst: false }).limit(1000);
     if (options.filter === "quick-cash") clientRequest = clientRequest.in("working_capital", ["baixo", "medio"]);
     if (options.filter === "attack") clientRequest = clientRequest.eq("recommendation", "atacar");
     const { data, error } = await clientRequest;
     const filtered = ((data ?? []) as unknown as Opportunity[])
-      .filter((item) => matchesProspectingOpportunity(item, clientMode as ProspectingProfileKey, radiusKm ?? 300))
+      .filter((item) => matchesProspectingOpportunity(item, canonicalClientMode, radiusKm ?? 300))
       .filter((item) => matchesTextSearch(item, options.query));
     const start = (page - 1) * pageSize;
     return { data: filtered.slice(start, start + pageSize), count: filtered.length, configured: true, error: error?.message ?? null, companyName, radiusKm };

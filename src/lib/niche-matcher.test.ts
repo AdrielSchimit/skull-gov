@@ -21,9 +21,10 @@ describe("strict niche matching", () => {
   });
 
   it("isolates direct fuel supply for gas stations", () => {
-    expect(matchesProspectingOpportunity(item("Fornecimento de combustível automotivo (gasolina comum, etanol e óleo diesel S-10) em posto de combustível", 24), "fuel_retail", 120)).toBe(true);
-    expect(matchesProspectingOpportunity(item("Contratação de sistema informatizado para gestão de abastecimento e cartão combustível", 24), "fuel_retail", 120)).toBe(false);
-    expect(matchesProspectingOpportunity(item("Execução de rede de esgoto com abastecimento de máquinas a diesel", 24), "fuel_retail", 120)).toBe(false);
+    expect(matchesProspectingOpportunity(item("Fornecimento de combustível automotivo (gasolina comum, etanol e óleo diesel S-10) em posto de combustível", 24), "fuel_station", 120)).toBe(true);
+    expect(matchesProspectingOpportunity(item("Contratação de sistema informatizado para gestão de abastecimento e cartão combustível", 24), "fuel_station", 120)).toBe(false);
+    expect(matchesProspectingOpportunity(item("Execução de rede de esgoto com abastecimento de máquinas a diesel", 24), "fuel_station", 120)).toBe(false);
+    expect(matchesProspectingOpportunity(item("Aquisição de gasolina comum", 24), "fuel_retail", 120)).toBe(true);
   });
 
   it("respects the configured radius", () => {

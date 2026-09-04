@@ -5,7 +5,7 @@ import { ProspectSyncButton } from "@/components/prospect-sync-button";
 import { DataError, EmptyState, OpportunityCard, PageHeader } from "@/components/ui";
 import { getLatestSync } from "@/lib/data";
 import { formatDate } from "@/lib/format";
-import { getProspectingOpportunities, PROSPECTING_PROFILES, type ProspectingProfileKey } from "@/lib/prospecting";
+import { getProspectingOpportunities, PROSPECTING_PROFILES, resolveProspectingProfileKey, type ProspectingProfileKey } from "@/lib/prospecting";
 import { getSessionContext } from "@/lib/session-context";
 import styles from "./page.module.css";
 
@@ -19,8 +19,7 @@ export default async function ProspectingPage({ searchParams }: { searchParams: 
   if (session.role !== "skull_admin") redirect("/dashboard");
 
   const params = await searchParams;
-  const requested = params.niche as ProspectingProfileKey | undefined;
-  const nicheKey: ProspectingProfileKey = requested && requested in PROSPECTING_PROFILES ? requested : "food_retail";
+  const nicheKey: ProspectingProfileKey = resolveProspectingProfileKey(params.niche) ?? "food_retail";
   const niche = PROSPECTING_PROFILES[nicheKey];
   const parsedRadius = Number(params.radius);
   const radius = allowedRadii.includes(parsedRadius) ? parsedRadius : niche.defaultRadius;
