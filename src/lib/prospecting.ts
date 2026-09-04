@@ -59,6 +59,14 @@ function matchesAny(value: string, terms: readonly string[]) {
   return terms.some((term) => haystack.includes(normalize(term)));
 }
 
+export function matchesProspectingOpportunity(item: Pick<Opportunity, "object" | "distance_km">, profileKey: ProspectingProfileKey, radiusKm: number) {
+  const niche = PROSPECTING_PROFILES[profileKey];
+  return matchesAny(item.object, niche.positive)
+    && !matchesAny(item.object, niche.negative)
+    && typeof item.distance_km === "number"
+    && item.distance_km <= radiusKm;
+}
+
 export async function getProspectingOpportunities(profileKey: ProspectingProfileKey, radiusKm: number) {
   const supabase = await createServerSupabaseClient();
   if (!supabase) return { data: [] as Opportunity[], count: 0, error: "Supabase não configurado." };
@@ -68,7 +76,6 @@ export async function getProspectingOpportunities(profileKey: ProspectingProfile
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
   if (profile?.role !== "skull_admin") return { data: [] as Opportunity[], count: 0, error: "Acesso restrito à gestão SKULL." };
 
-  const niche = PROSPECTING_PROFILES[profileKey];
   const { data, error } = await supabase
     .from("opportunities")
     .select("*")
@@ -79,9 +86,7 @@ export async function getProspectingOpportunities(profileKey: ProspectingProfile
   if (error) return { data: [] as Opportunity[], count: 0, error: error.message };
 
   const filtered = ((data ?? []) as unknown as Opportunity[])
-    .filter((item) => matchesAny(item.object, niche.positive))
-    .filter((item) => !matchesAny(item.object, niche.negative))
-    .filter((item) => typeof item.distance_km === "number" && item.distance_km <= radiusKm)
+    .filter((item) => matchesProspectingOpportunity(item, profileKey, radiusKm))
     .sort((a, b) => {
       const distance = (a.distance_km ?? 9999) - (b.distance_km ?? 9999);
       if (distance !== 0) return distance;
