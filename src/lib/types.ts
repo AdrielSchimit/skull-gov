@@ -38,6 +38,8 @@ export interface Opportunity {
   year: number;
   documents_available: boolean | null;
   source_updated_at: string | null;
+  source_names: string[];
+  source_refs: Record<string, string>;
   distance_km: number | null;
   remote_execution: boolean;
   skull_score: number;
