@@ -40,10 +40,11 @@ export async function getVerticalRadar(slug: string) {
     .filter(Boolean)
     .slice(0, 30);
 
+  const now = new Date().toISOString();
   let request = supabase
     .from("opportunities")
     .select("*")
-    .gte("closes_at", new Date().toISOString())
+    .or(`closes_at.gte.${now},closes_at.is.null`)
     .order("closes_at", { ascending: true, nullsFirst: false })
     .limit(50);
 
