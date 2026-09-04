@@ -20,6 +20,12 @@ describe("strict niche matching", () => {
     expect(matchesProspectingOpportunity(item("Contratação de empresa especializada com fornecimento de materiais e mão de obra para reforma de escola"), "construction_retail", 300)).toBe(false);
   });
 
+  it("isolates direct fuel supply for gas stations", () => {
+    expect(matchesProspectingOpportunity(item("Fornecimento de combustível automotivo (gasolina comum, etanol e óleo diesel S-10) em posto de combustível", 24), "fuel_retail", 120)).toBe(true);
+    expect(matchesProspectingOpportunity(item("Contratação de sistema informatizado para gestão de abastecimento e cartão combustível", 24), "fuel_retail", 120)).toBe(false);
+    expect(matchesProspectingOpportunity(item("Execução de rede de esgoto com abastecimento de máquinas a diesel", 24), "fuel_retail", 120)).toBe(false);
+  });
+
   it("respects the configured radius", () => {
     expect(matchesProspectingOpportunity(item("Aquisição de gêneros alimentícios", 181), "food_retail", 180)).toBe(false);
   });
