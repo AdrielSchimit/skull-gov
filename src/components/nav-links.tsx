@@ -2,6 +2,7 @@
 
 import {
   Bell, BriefcaseBusiness, Building2, DraftingCompass, FileStack, Gamepad2, Gauge, Handshake, Radar, Settings2, Store, UsersRound,
+  BrainCircuit,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -21,6 +22,7 @@ const prospectLink = { href: "/prospeccao", label: "Prospectar clientes", icon: 
 const simulatorLink = { href: "/simulador", label: "Simulador de Pregão", icon: Gamepad2 };
 
 const adminLinks = [
+  { href: "/inteligencia", label: "Inteligência GOV", icon: BrainCircuit },
   prospectLink,
   simulatorLink,
   { href: "/arquitetura", label: "Arquitetura & Urbanismo", icon: DraftingCompass },
