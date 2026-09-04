@@ -14,7 +14,10 @@ function canonicalPncpUrl(id: string, fallback?: string | null) {
   return fallback ?? "https://pncp.gov.br/app/editais";
 }
 
-export function normalizeContracting(source: PncpContracting): Omit<Opportunity, "id" | "tenant_id"> | null {
+export function normalizeContracting(
+  source: PncpContracting,
+  metadata: { sourceName?: string; sourceRef?: string } = {},
+): Omit<Opportunity, "id" | "tenant_id"> | null {
   const pncpId = source.numeroControlePNCP?.trim();
   const object = source.objetoCompra?.trim();
   const agencyCnpj = source.orgaoEntidade?.cnpj?.replace(/\D/g, "");
@@ -32,6 +35,8 @@ export function normalizeContracting(source: PncpContracting): Omit<Opportunity,
     modality: source.modalidadeNome ?? "Não informada",
     disputeMode: source.modoDisputaNome ?? null,
   });
+  const sourceName = metadata.sourceName ?? "PNCP";
+  const sourceRef = metadata.sourceRef ?? canonicalPncpUrl(pncpId, source.linkSistemaOrigem);
   return {
     pncp_id: pncpId,
     agency_name: source.orgaoEntidade?.razaoSocial?.trim() || "Órgão não informado",
@@ -53,6 +58,8 @@ export function normalizeContracting(source: PncpContracting): Omit<Opportunity,
     year,
     documents_available: null,
     source_updated_at: source.dataAtualizacao ?? null,
+    source_names: [sourceName],
+    source_refs: { [sourceName]: sourceRef },
     distance_km: distanceKm,
     remote_execution: scoring.remoteExecution,
     skull_score: scoring.skullScore,
