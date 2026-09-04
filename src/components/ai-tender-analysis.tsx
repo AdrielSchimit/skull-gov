@@ -2,6 +2,7 @@
 
 import { Bot, FileSearch, Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
+import styles from "@/components/ai-tender-analysis.module.css";
 
 type Analysis = {
   resumo_executivo?: string;
@@ -39,21 +40,21 @@ export function AiTenderAnalysis({ opportunityId, configured, model }: { opportu
     } finally { setLoading(false); }
   }
 
-  return <section className="panel ai-analysis-panel">
+  return <section className={`panel ${styles.panel}`}>
     <div className="section-heading">
       <div><span className="eyebrow">SKULL IA</span><h2>Leitura do edital e checklist</h2><p>A IA consulta documentos e itens públicos do PNCP e devolve uma leitura operacional. Sempre valide o edital original.</p></div>
-      <span className={`ai-status ${configured ? "ready" : "waiting"}`}><Bot size={15} />{configured ? `Pronta · ${model}` : "Aguardando API Key"}</span>
+      <span className={`${styles.status} ${configured ? styles.ready : styles.waiting}`}><Bot size={15} />{configured ? `Pronta · ${model}` : "Aguardando API Key"}</span>
     </div>
 
-    {!analysis && <div className="ai-ready-box">
+    {!analysis && <div className={styles.readyBox}>
       <FileSearch size={28} />
       <div><strong>{configured ? "Analisar esta oportunidade agora" : "Infraestrutura pronta para receber a IA"}</strong><p>{configured ? "Vamos puxar os arquivos públicos disponíveis, itens e metadados para gerar o resumo." : "Assim que GEMINI_API_KEY for adicionada à Vercel, este botão passa a analisar os editais sem alteração de código."}</p></div>
       <button className="button button-primary" onClick={run} disabled={!configured || loading}>{loading ? <Loader2 className="spin" size={17} /> : <Sparkles size={17} />}{loading ? "Lendo edital…" : "Analisar com SKULL IA"}</button>
     </div>}
 
-    {error && <p className="form-error" role="alert">{error}</p>}
-    {analysis && <div className="ai-result">
-      <div className="ai-result-hero"><span className="eyebrow">RESUMO EXECUTIVO</span><h3>{analysis.recomendacao || "ANÁLISE"} {typeof analysis.confianca === "number" ? `· ${analysis.confianca}% confiança` : ""}</h3><p>{analysis.resumo_executivo || "Resumo não informado."}</p></div>
+    {error && <p className={styles.error} role="alert">{error}</p>}
+    {analysis && <div className={styles.result}>
+      <div className={styles.hero}><span className="eyebrow">RESUMO EXECUTIVO</span><h3>{analysis.recomendacao || "ANÁLISE"} {typeof analysis.confianca === "number" ? `· ${analysis.confianca}% confiança` : ""}</h3><p>{analysis.resumo_executivo || "Resumo não informado."}</p></div>
       <div className="facts-grid">
         <div className="fact"><small>Pagamento</small><strong>{analysis.pagamento || "Não identificado"}</strong></div>
         <div className="fact"><small>ME/EPP</small><strong>{analysis.me_epp || "Não identificado"}</strong></div>
